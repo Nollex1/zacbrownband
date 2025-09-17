@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Sphere Nights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --line:#e5e7eb; --ink:#111; --muted:#6b7280; }
+    *{box-sizing:border-box}
+    body{font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif;margin:0;color:var(--ink);background:#fff}
+    header{background:#000;color:#fff;padding:16px 20px}
+    header h2{margin:0;font-size:18px}
+    main{max-width:820px;margin:20px auto;padding:0 20px}
+    .card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;background:#fff}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .col{flex:1 1 260px}
+    label{font-size:14px;color:var(--muted)}
+    input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+    .total{font-weight:800;font-size:18px}
+    .btn{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700}
+    .btn.primary{background:#111;color:#fff;border-color:#111}
+    .hint{font-size:12px;color:var(--muted)}
+    footer{padding:22px 20px;border-top:1px solid var(--line);text-align:center;color:#9aa0a6;font-size:14px;margin-top:10px}
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Checkout</h2>
+  </header>
+
+  <main>
+    <div id="summary" class="card">Loading…</div>
+
+    <div class="card">
+      <div class="row">
+        <div class="col">
+          <label>Full name</label>
+          <input id="buyerName" type="text" placeholder="Your name" required />
+        </div>
+        <div class="col">
+          <label>Email for ticket delivery</label>
+          <input id="buyerEmail" type="email" placeholder="you@example.com" required />
+        </div>
+      </div>
+      <p class="hint">We’ll email your ticket code and details after payment.</p>
+    </div>
+
+    <div class="card">
+      <p class="total" id="totalRow">Total: —</p>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="pay-crypto">Pay with Crypto</button>
+        <button class="btn" id="pay-card">Pay with Card</button>
+      </div>
+    </div>
+
+    <p><a href="index.html#dates">← Back to dates</a></p>
+  </main>
+
+  <footer>© <span id="year"></span> Sphere Nights</footer>
+
+  <!-- Flutterwave script -->
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Load selection from tickets.html
+    const s = JSON.parse(localStorage.getItem('sphereSelection') || '{}');
+    const summary = document.getElementById('summary');
+    const totalRow = document.getElementById('totalRow');
+
+    if(!s || !s.choice){
+      summary.innerHTML = '<p>No selection yet. <a href="index.html#dates">Go back</a>.</p>';
+    }else{
+      summary.innerHTML = `
+        <p><b>${s.title}</b></p>
+        <p>${s.date}</p>
+        <p>${s.venue}</p>
+        <p><b>Option:</b> ${s.choice.name}</p>
+        <p><b>Type:</b> ${s.choice.desc}</p>
+      `;
+      totalRow.textContent = 'Total: $' + Number(s.choice.price).toLocaleString();
+    }
+
+    function generateCode(eventId){
+      const rand = Math.random().toString(36).slice(2,8).toUpperCase();
+      return `SPH-${(eventId||'EVT').toUpperCase()}-${rand}`;
+    }
+
+    function ensureInputs(){
+      const name  = document.getElementById('buyerName').value.trim();
+      const email = document.getElementById('buyerEmail').value.trim();
+      if(!name){ alert('Enter your name'); return null; }
+      if(!email || !/^\S+@\S+\.\S+$/.test(email)){ alert('Enter a valid email'); return null; }
+      return { name, email };
+    }
+
+    const NOWPAYMENTS_TICKET_LINK = "https://nowpayments.io/payment/?iid=5878295676";
+
+    // Pay with Crypto
+    document.getElementById('pay-crypto').onclick = ()=>{
+      const buyer = ensureInputs(); if(!buyer) return;
+      const previewCode = generateCode(s.eventId);
+      localStorage.setItem('pendingBuyer', JSON.stringify({ ...buyer, previewCode }));
+      window.open(NOWPAYMENTS_TICKET_LINK, '_blank');
+    };
+
+    // Pay with Card (Flutterwave)
+    document.getElementById('pay-card').onclick = ()=>{
+      const buyer = ensureInputs(); if(!buyer) return;
+      const previewCode = generateCode(s.eventId);
+
+      FlutterwaveCheckout({
+        public_key: "FLWPUBK_TEST-c09519b194c06a53a8740c9d00bad5d2-X",
+        tx_ref: previewCode,
+        amount: Number(s.choice?.price || 0),
+        currency: "USD",
+        payment_options: "card, banktransfer, ussd",
+        customer: {
+          email: buyer.email,
+          name: buyer.name,
+        },
+        customizations: {
+          title: "Sphere Nights",
+          description: s.choice?.desc || "Concert Ticket",
+          logo: "https://via.placeholder.com/150"
+        }
+      });
+    };
+  </script>
+</body>
+</html>
