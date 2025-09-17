@@ -19,7 +19,7 @@ body {
   margin: 0;
   font-family: Inter, sans-serif;
   color: #fff;
-  background: url('assets/hero.jpg') top center no-repeat fixed;
+  background: url('hero.jpg') top center no-repeat fixed;
   background-size: cover;   /* fills the screen */
 }
 
